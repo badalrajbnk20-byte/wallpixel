@@ -4,6 +4,7 @@ import { WallpaperCard } from "@/components/WallpaperCard";
 import { WallpaperPreview } from "@/components/WallpaperPreview";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { SearchBar } from "@/components/SearchBar";
+import { AIWallpaperGenerator } from "@/components/AIWallpaperGenerator";
 import { Category, Wallpaper } from "@/types/wallpaper";
 import { ImageIcon } from "lucide-react";
 
@@ -52,6 +53,9 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
+        {/* AI Wallpaper Generator */}
+        <AIWallpaperGenerator />
+
         {/* Category Filter */}
         <div className="mb-6">
           <CategoryFilter
