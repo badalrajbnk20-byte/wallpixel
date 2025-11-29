@@ -23,7 +23,8 @@ export const WallpaperPreview = ({ wallpaper, isOpen, onClose }: WallpaperPrevie
     document.body.removeChild(link);
     
     toast.success("Wallpaper downloaded!", {
-      description: "Check your downloads folder",
+      description: "Go to Gallery → Select image → Set as wallpaper",
+      duration: 5000,
     });
   };
 
