@@ -5,6 +5,7 @@ import { WallpaperPreview } from "@/components/WallpaperPreview";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { SearchBar } from "@/components/SearchBar";
 import { AIWallpaperGenerator } from "@/components/AIWallpaperGenerator";
+import { AdBox } from "@/components/AdBox";
 import { Category, Wallpaper } from "@/types/wallpaper";
 import { ImageIcon } from "lucide-react";
 
@@ -53,8 +54,18 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
+        {/* Top Ad */}
+        <div className="mb-6">
+          <AdBox size="large" />
+        </div>
+
         {/* AI Wallpaper Generator */}
         <AIWallpaperGenerator />
+
+        {/* Mid Ad */}
+        <div className="my-6">
+          <AdBox size="medium" />
+        </div>
 
         {/* Category Filter */}
         <div className="mb-6">
@@ -74,13 +85,26 @@ const Index = () => {
 
         {/* Wallpaper Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {filteredWallpapers.map((wallpaper) => (
-            <WallpaperCard
-              key={wallpaper.id}
-              wallpaper={wallpaper}
-              onClick={() => handleWallpaperClick(wallpaper)}
-            />
+          {filteredWallpapers.map((wallpaper, index) => (
+            <>
+              <WallpaperCard
+                key={wallpaper.id}
+                wallpaper={wallpaper}
+                onClick={() => handleWallpaperClick(wallpaper)}
+              />
+              {/* Insert ad after every 8 wallpapers */}
+              {(index + 1) % 8 === 0 && index !== filteredWallpapers.length - 1 && (
+                <div className="col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5">
+                  <AdBox size="medium" />
+                </div>
+              )}
+            </>
           ))}
+        </div>
+
+        {/* Bottom Ad */}
+        <div className="mt-8">
+          <AdBox size="large" />
         </div>
 
         {/* Empty State */}
