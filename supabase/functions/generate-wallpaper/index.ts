@@ -43,7 +43,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'user',
-            content: `Create a stunning mobile wallpaper with this description: ${prompt}. Ultra high resolution, aspect ratio 9:16, perfect for phone screens.`
+            content: `Create a stunning mobile wallpaper: ${prompt}. IMPORTANT: Create a pure visual wallpaper with NO TEXT, NO WORDS, NO LETTERS unless explicitly requested in the prompt. Ultra high resolution, 9:16 portrait aspect ratio (1080x1920 pixels), optimized for mobile phone screens. Focus on beautiful imagery, colors, and composition.`
           }
         ],
         modalities: ['image', 'text']
