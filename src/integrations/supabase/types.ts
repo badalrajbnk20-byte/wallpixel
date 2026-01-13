@@ -14,7 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      wallpaper_downloads: {
+        Row: {
+          category: string | null
+          downloaded_at: string
+          id: string
+          is_ai_generated: boolean | null
+          wallpaper_id: string
+          wallpaper_title: string
+        }
+        Insert: {
+          category?: string | null
+          downloaded_at?: string
+          id?: string
+          is_ai_generated?: boolean | null
+          wallpaper_id: string
+          wallpaper_title: string
+        }
+        Update: {
+          category?: string | null
+          downloaded_at?: string
+          id?: string
+          is_ai_generated?: boolean | null
+          wallpaper_id?: string
+          wallpaper_title?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

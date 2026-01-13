@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Download, Loader2 } from "lucide-react";
+import { Sparkles, Download, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -64,8 +64,24 @@ export const AIWallpaperGenerator = () => {
     }
   };
 
-  const handleDownload = () => {
+  const trackAIDownload = async () => {
+    try {
+      await supabase.from('wallpaper_downloads').insert({
+        wallpaper_id: `ai-${Date.now()}`,
+        wallpaper_title: prompt.slice(0, 50),
+        category: 'AI Generated',
+        is_ai_generated: true
+      });
+    } catch (error) {
+      console.error('Failed to track download:', error);
+    }
+  };
+
+  const handleDownload = async () => {
     if (!generatedImage) return;
+
+    // Track the download
+    await trackAIDownload();
 
     // Create a temporary link to download the base64 image
     const link = document.createElement("a");
@@ -75,7 +91,10 @@ export const AIWallpaperGenerator = () => {
     link.click();
     document.body.removeChild(link);
     
-    toast.success("Wallpaper downloaded!");
+    toast.success("Wallpaper downloaded!", {
+      description: "Go to Gallery → Select image → Set as wallpaper",
+      duration: 5000,
+    });
   };
 
   return (
@@ -122,6 +141,16 @@ export const AIWallpaperGenerator = () => {
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-full w-full h-full p-0 bg-background/95 backdrop-blur-xl border-0">
           <div className="relative w-full h-full flex flex-col items-center justify-center p-4">
+            {/* Close Button */}
+            <Button
+              onClick={() => setShowPreview(false)}
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 z-50 bg-card/80 backdrop-blur-sm hover:bg-card"
+            >
+              <X className="w-6 h-6" />
+            </Button>
+
             {/* Image */}
             <div className="relative max-w-md w-full h-full flex items-center justify-center">
               {generatedImage && (

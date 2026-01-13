@@ -31,6 +31,20 @@ serve(async (req) => {
 
     console.log('Generating wallpaper with prompt:', prompt);
 
+    // Enhanced prompt for better mobile wallpapers
+    const enhancedPrompt = `Create a stunning, professional-quality mobile phone wallpaper based on this theme: "${prompt}".
+
+CRITICAL REQUIREMENTS:
+- Portrait orientation (9:16 aspect ratio, 1080x1920 pixels) - MUST be vertical/tall format for mobile phones
+- ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO NUMBERS, NO WATERMARKS on the image
+- Ultra high resolution, crisp and sharp details
+- Beautiful, rich colors with good contrast
+- Suitable for a phone home screen background
+- Clean, visually striking composition
+- Professional photography or artistic quality
+
+Style: Create a visually stunning, immersive image that would look amazing as a phone wallpaper. Focus on depth, lighting, and atmosphere.`;
+
     // Call Lovable AI Gateway with image generation model
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -43,7 +57,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'user',
-            content: `Create a stunning mobile wallpaper: ${prompt}. IMPORTANT: Create a pure visual wallpaper with NO TEXT, NO WORDS, NO LETTERS unless explicitly requested in the prompt. Ultra high resolution, 9:16 portrait aspect ratio (1080x1920 pixels), optimized for mobile phone screens. Focus on beautiful imagery, colors, and composition.`
+            content: enhancedPrompt
           }
         ],
         modalities: ['image', 'text']
