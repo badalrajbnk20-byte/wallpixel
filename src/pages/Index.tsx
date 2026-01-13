@@ -36,16 +36,23 @@ const Index = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
-              <ImageIcon className="w-6 h-6 text-primary-foreground" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
+                <ImageIcon className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                  WallPixel
+                </h1>
+                <p className="text-sm text-muted-foreground">Premium Wallpapers</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                WallPixel
-              </h1>
-              <p className="text-sm text-muted-foreground">Premium Wallpapers</p>
-            </div>
+            <nav className="hidden md:flex gap-2">
+              <a href="/about" className="px-3 py-2 text-sm text-muted-foreground hover:text-primary transition-colors">About</a>
+              <a href="/contact" className="px-3 py-2 text-sm text-muted-foreground hover:text-primary transition-colors">Contact</a>
+              <a href="/privacy" className="px-3 py-2 text-sm text-muted-foreground hover:text-primary transition-colors">Privacy</a>
+            </nav>
           </div>
           
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
@@ -118,6 +125,18 @@ const Index = () => {
           </div>
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-border mt-8 py-8">
+        <div className="container mx-auto px-4 text-center text-muted-foreground">
+          <p>&copy; {new Date().getFullYear()} WallPixel. All rights reserved.</p>
+          <div className="flex justify-center gap-6 mt-4">
+            <a href="/about" className="hover:text-primary transition-colors">About</a>
+            <a href="/contact" className="hover:text-primary transition-colors">Contact</a>
+            <a href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</a>
+          </div>
+        </div>
+      </footer>
 
       {/* Wallpaper Preview Modal */}
       <WallpaperPreview
