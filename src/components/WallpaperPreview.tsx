@@ -3,6 +3,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, X, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WallpaperPreviewProps {
   wallpaper: Wallpaper | null;
@@ -13,7 +14,23 @@ interface WallpaperPreviewProps {
 export const WallpaperPreview = ({ wallpaper, isOpen, onClose }: WallpaperPreviewProps) => {
   if (!wallpaper) return null;
 
-  const handleDownload = () => {
+  const trackDownload = async () => {
+    try {
+      await supabase.from('wallpaper_downloads').insert({
+        wallpaper_id: wallpaper.id,
+        wallpaper_title: wallpaper.title,
+        category: wallpaper.category,
+        is_ai_generated: false
+      });
+    } catch (error) {
+      console.error('Failed to track download:', error);
+    }
+  };
+
+  const handleDownload = async () => {
+    // Track the download
+    await trackDownload();
+    
     // Create a temporary link to download the image
     const link = document.createElement("a");
     link.href = wallpaper.imageUrl;
