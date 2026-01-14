@@ -1,0 +1,4 @@
+# ads.txt for WallPixel (Google AdSense)
+# This file helps authorize sellers of your inventory.
+
+google.com, pub-3459285056612238, DIRECT, f08c47fec0942fa0
