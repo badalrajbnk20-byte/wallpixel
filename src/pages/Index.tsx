@@ -63,7 +63,7 @@ const Index = () => {
       <main className="container mx-auto px-4 py-6">
         {/* Top Ad */}
         <div className="mb-6">
-          <AdBox size="large" />
+          <AdBox />
         </div>
 
         {/* AI Wallpaper Generator */}
@@ -71,7 +71,7 @@ const Index = () => {
 
         {/* Mid Ad */}
         <div className="my-6">
-          <AdBox size="medium" />
+          <AdBox />
         </div>
 
         {/* Category Filter */}
@@ -102,7 +102,7 @@ const Index = () => {
               {/* Insert ad after every 8 wallpapers */}
               {(index + 1) % 8 === 0 && index !== filteredWallpapers.length - 1 && (
                 <div className="col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5">
-                  <AdBox size="medium" />
+                  <AdBox />
                 </div>
               )}
             </>
@@ -111,7 +111,7 @@ const Index = () => {
 
         {/* Bottom Ad */}
         <div className="mt-8">
-          <AdBox size="large" />
+          <AdBox />
         </div>
 
         {/* Empty State */}

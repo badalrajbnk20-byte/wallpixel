@@ -1,25 +1,35 @@
-import { Card } from "@/components/ui/card";
+import { useEffect, useRef } from "react";
 
 interface AdBoxProps {
   className?: string;
-  size?: "small" | "medium" | "large";
 }
 
-export const AdBox = ({ className = "", size = "medium" }: AdBoxProps) => {
-  const sizeClasses = {
-    small: "h-24",
-    medium: "h-32",
-    large: "h-48"
-  };
+export const AdBox = ({ className = "" }: AdBoxProps) => {
+  const adContainerRef = useRef<HTMLDivElement>(null);
+  const scriptLoaded = useRef(false);
+
+  useEffect(() => {
+    if (scriptLoaded.current || !adContainerRef.current) return;
+
+    // Create the Adsterra native banner script
+    const script = document.createElement("script");
+    script.async = true;
+    script.dataset.cfasync = "false";
+    script.src = "https://pl28477227.effectivegatecpm.com/e038811b45f5e533076d79eec18e2f92/invoke.js";
+    
+    adContainerRef.current.appendChild(script);
+    scriptLoaded.current = true;
+
+    return () => {
+      if (adContainerRef.current && script.parentNode === adContainerRef.current) {
+        adContainerRef.current.removeChild(script);
+      }
+    };
+  }, []);
 
   return (
-    <Card className={`${sizeClasses[size]} ${className} flex items-center justify-center bg-muted/30 border-2 border-dashed border-muted-foreground/20`}>
-      <div className="text-center p-4">
-        <p className="text-sm text-muted-foreground font-medium">Advertisement Space</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">
-          Connect Google AdSense or other ad network
-        </p>
-      </div>
-    </Card>
+    <div className={className}>
+      <div id="container-e038811b45f5e533076d79eec18e2f92" ref={adContainerRef}></div>
+    </div>
   );
 };
