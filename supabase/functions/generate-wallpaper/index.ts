@@ -31,21 +31,17 @@ serve(async (req) => {
 
     console.log('Generating wallpaper with prompt:', prompt);
 
-    // Enhanced prompt for better mobile wallpapers
-    const enhancedPrompt = `Create a stunning, professional-quality mobile phone wallpaper based on this theme: "${prompt}".
+    // Enhanced prompt for better mobile wallpapers - PORTRAIT orientation
+    const enhancedPrompt = `Generate a VERTICAL/PORTRAIT mobile phone wallpaper (9:16 aspect ratio, tall format like 1080x1920) based on: "${prompt}".
 
-CRITICAL REQUIREMENTS:
-- Portrait orientation (9:16 aspect ratio, 1080x1920 pixels) - MUST be vertical/tall format for mobile phones
-- ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO NUMBERS, NO WATERMARKS on the image
-- Ultra high resolution, crisp and sharp details
-- Beautiful, rich colors with good contrast
-- Suitable for a phone home screen background
-- Clean, visually striking composition
-- Professional photography or artistic quality
+Requirements:
+- MUST be VERTICAL/PORTRAIT orientation - taller than wide
+- NO text, words, letters, numbers or watermarks
+- High quality, vibrant colors
+- Beautiful composition for phone home screen
+- Professional quality image`;
 
-Style: Create a visually stunning, immersive image that would look amazing as a phone wallpaper. Focus on depth, lighting, and atmosphere.`;
-
-    // Call Lovable AI Gateway with image generation model
+    // Call Lovable AI Gateway with image generation model that supports aspect ratio
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -53,14 +49,17 @@ Style: Create a visually stunning, immersive image that would look amazing as a 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image',
+        model: 'google/gemini-3-pro-image-preview',
         messages: [
           {
             role: 'user',
             content: enhancedPrompt
           }
         ],
-        modalities: ['image', 'text']
+        modalities: ['image', 'text'],
+        image_generation_config: {
+          aspect_ratio: '9:16'
+        }
       })
     });
 
