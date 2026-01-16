@@ -11,11 +11,18 @@ export const AdBox = ({ className = "" }: AdBoxProps) => {
   useEffect(() => {
     if (scriptLoaded.current || !adContainerRef.current) return;
 
-    // Create the Adsterra native banner script
+    // Set atOptions globally
+    (window as any).atOptions = {
+      'key': 'a0068f90758c6ae508a7b7f5db504dac',
+      'format': 'iframe',
+      'height': 60,
+      'width': 468,
+      'params': {}
+    };
+
+    // Create the Adsterra banner script
     const script = document.createElement("script");
-    script.async = true;
-    script.dataset.cfasync = "false";
-    script.src = "https://pl28477227.effectivegatecpm.com/e038811b45f5e533076d79eec18e2f92/invoke.js";
+    script.src = "https://annoyancedisparity.com/a0068f90758c6ae508a7b7f5db504dac/invoke.js";
     
     adContainerRef.current.appendChild(script);
     scriptLoaded.current = true;
@@ -28,8 +35,6 @@ export const AdBox = ({ className = "" }: AdBoxProps) => {
   }, []);
 
   return (
-    <div className={className}>
-      <div id="container-e038811b45f5e533076d79eec18e2f92" ref={adContainerRef}></div>
-    </div>
+    <div className={`${className} flex justify-center`} ref={adContainerRef}></div>
   );
 };
