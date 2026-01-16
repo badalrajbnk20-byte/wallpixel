@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt } = await req.json();
+    const { prompt, aspectRatio = "9:16", inputImage } = await req.json();
     
     if (!prompt || typeof prompt !== 'string') {
       return new Response(
@@ -29,19 +29,51 @@ serve(async (req) => {
       );
     }
 
-    console.log('Generating wallpaper with prompt:', prompt);
+    console.log('Generating wallpaper with prompt:', prompt, 'aspectRatio:', aspectRatio, 'hasInputImage:', !!inputImage);
 
-    // Enhanced prompt for better mobile wallpapers - PORTRAIT orientation
-    const enhancedPrompt = `Generate a VERTICAL/PORTRAIT mobile phone wallpaper (9:16 aspect ratio, tall format like 1080x1920) based on: "${prompt}".
+    // Get orientation description based on aspect ratio
+    const orientationMap: Record<string, string> = {
+      "9:16": "VERTICAL/PORTRAIT orientation (tall, like a phone screen)",
+      "3:4": "PORTRAIT orientation (slightly tall, like a tablet)",
+      "16:9": "HORIZONTAL/LANDSCAPE orientation (wide, like a desktop monitor)",
+    };
+    const orientationDesc = orientationMap[aspectRatio] || orientationMap["9:16"];
+
+    // Build the message content
+    let messageContent: any;
+
+    if (inputImage) {
+      // Image-to-image: Transform uploaded photo
+      const enhancedPrompt = `Transform this image into a beautiful wallpaper with ${aspectRatio} aspect ratio (${orientationDesc}).
+
+User's request: "${prompt}"
 
 Requirements:
-- MUST be VERTICAL/PORTRAIT orientation - taller than wide
+- Apply the transformation while maintaining the essence of the original image
+- Make it suitable as a ${aspectRatio === "9:16" ? "mobile phone" : aspectRatio === "3:4" ? "tablet" : "desktop"} wallpaper
+- NO text, words, or watermarks
+- High quality, vibrant result
+- Professional quality output`;
+
+      messageContent = [
+        { type: "text", text: enhancedPrompt },
+        { type: "image_url", image_url: { url: inputImage } }
+      ];
+    } else {
+      // Text-to-image: Generate new wallpaper
+      const enhancedPrompt = `Generate a ${aspectRatio} aspect ratio wallpaper (${orientationDesc}) based on: "${prompt}".
+
+Requirements:
+- MUST be ${orientationDesc}
 - NO text, words, letters, numbers or watermarks
 - High quality, vibrant colors
-- Beautiful composition for phone home screen
+- Beautiful composition for ${aspectRatio === "9:16" ? "phone" : aspectRatio === "3:4" ? "tablet" : "desktop"} home screen
 - Professional quality image`;
 
-    // Call Lovable AI Gateway with image generation model that supports aspect ratio
+      messageContent = enhancedPrompt;
+    }
+
+    // Call Lovable AI Gateway with image generation model
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -53,12 +85,12 @@ Requirements:
         messages: [
           {
             role: 'user',
-            content: enhancedPrompt
+            content: messageContent
           }
         ],
         modalities: ['image', 'text'],
         image_generation_config: {
-          aspect_ratio: '9:16'
+          aspect_ratio: aspectRatio
         }
       })
     });
