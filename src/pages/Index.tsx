@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { wallpapers } from "@/data/wallpapers";
 import { WallpaperCard } from "@/components/WallpaperCard";
 import { WallpaperPreview } from "@/components/WallpaperPreview";
@@ -8,7 +9,9 @@ import { AIWallpaperGenerator } from "@/components/AIWallpaperGenerator";
 import { NativeBannerAd } from "@/components/NativeBannerAd";
 import { SocialBarAd } from "@/components/SocialBarAd";
 import { Category, Wallpaper } from "@/types/wallpaper";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Crown, User, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 const categories: Category[] = ["All", "Nature", "Abstract", "Dark", "Minimal", "Colorful"];
 
@@ -17,6 +20,8 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedWallpaper, setSelectedWallpaper] = useState<Wallpaper | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const { user, isPremium, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const filteredWallpapers = useMemo(() => {
     return wallpapers.filter((wallpaper) => {
@@ -34,8 +39,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Social Bar Ad */}
-      <SocialBarAd />
+      {/* Social Bar Ad - hide for premium */}
+      {!isPremium && <SocialBarAd />}
       
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
@@ -53,9 +58,23 @@ const Index = () => {
               </div>
             </div>
             <nav className="hidden md:flex gap-2">
+              <a href="/premium-wallpapers" className="px-3 py-2 text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+                <Crown className="w-4 h-4 text-yellow-500" />
+                Premium
+              </a>
               <a href="/about" className="px-3 py-2 text-sm text-muted-foreground hover:text-primary transition-colors">About</a>
               <a href="/contact" className="px-3 py-2 text-sm text-muted-foreground hover:text-primary transition-colors">Contact</a>
-              <a href="/privacy" className="px-3 py-2 text-sm text-muted-foreground hover:text-primary transition-colors">Privacy</a>
+              {user ? (
+                <Button variant="ghost" size="sm" onClick={() => signOut()}>
+                  <LogOut className="w-4 h-4 mr-1" />
+                  Logout
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => navigate("/auth")}>
+                  <User className="w-4 h-4 mr-1" />
+                  Login
+                </Button>
+              )}
             </nav>
           </div>
           
@@ -65,18 +84,22 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        {/* Top Ad */}
-        <div className="mb-6">
-          <NativeBannerAd />
-        </div>
+        {/* Top Ad - hide for premium */}
+        {!isPremium && (
+          <div className="mb-6">
+            <NativeBannerAd />
+          </div>
+        )}
 
         {/* AI Wallpaper Generator */}
         <AIWallpaperGenerator />
 
-        {/* Mid Ad */}
-        <div className="my-6">
-          <NativeBannerAd />
-        </div>
+        {/* Mid Ad - hide for premium */}
+        {!isPremium && (
+          <div className="my-6">
+            <NativeBannerAd />
+          </div>
+        )}
 
         {/* Category Filter */}
         <div className="mb-6">
@@ -102,8 +125,8 @@ const Index = () => {
                 wallpaper={wallpaper}
                 onClick={() => handleWallpaperClick(wallpaper)}
               />
-              {/* Insert ad after every 10 wallpapers */}
-              {(index + 1) % 10 === 0 && index !== filteredWallpapers.length - 1 && (
+              {/* Insert ad after every 10 wallpapers - hide for premium */}
+              {!isPremium && (index + 1) % 10 === 0 && index !== filteredWallpapers.length - 1 && (
                 <div className="col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5 my-4">
                   <NativeBannerAd />
                 </div>
@@ -112,10 +135,12 @@ const Index = () => {
           ))}
         </div>
 
-        {/* Bottom Ad */}
-        <div className="mt-8">
-          <NativeBannerAd />
-        </div>
+        {/* Bottom Ad - hide for premium */}
+        {!isPremium && (
+          <div className="mt-8">
+            <NativeBannerAd />
+          </div>
+        )}
 
         {/* Empty State */}
         {filteredWallpapers.length === 0 && (
