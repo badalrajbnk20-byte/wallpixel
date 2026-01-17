@@ -5,7 +5,8 @@ import { WallpaperPreview } from "@/components/WallpaperPreview";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { SearchBar } from "@/components/SearchBar";
 import { AIWallpaperGenerator } from "@/components/AIWallpaperGenerator";
-import { AdBox } from "@/components/AdBox";
+import { NativeBannerAd } from "@/components/NativeBannerAd";
+import { SocialBarAd } from "@/components/SocialBarAd";
 import { Category, Wallpaper } from "@/types/wallpaper";
 import { ImageIcon } from "lucide-react";
 
@@ -33,6 +34,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Social Bar Ad */}
+      <SocialBarAd />
+      
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="container mx-auto px-4 py-4">
@@ -63,7 +67,7 @@ const Index = () => {
       <main className="container mx-auto px-4 py-6">
         {/* Top Ad */}
         <div className="mb-6">
-          <AdBox />
+          <NativeBannerAd />
         </div>
 
         {/* AI Wallpaper Generator */}
@@ -71,7 +75,7 @@ const Index = () => {
 
         {/* Mid Ad */}
         <div className="my-6">
-          <AdBox />
+          <NativeBannerAd />
         </div>
 
         {/* Category Filter */}
@@ -93,25 +97,24 @@ const Index = () => {
         {/* Wallpaper Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredWallpapers.map((wallpaper, index) => (
-            <>
+            <div key={wallpaper.id}>
               <WallpaperCard
-                key={wallpaper.id}
                 wallpaper={wallpaper}
                 onClick={() => handleWallpaperClick(wallpaper)}
               />
-              {/* Insert ad after every 8 wallpapers */}
-              {(index + 1) % 8 === 0 && index !== filteredWallpapers.length - 1 && (
-                <div className="col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5">
-                  <AdBox />
+              {/* Insert ad after every 10 wallpapers */}
+              {(index + 1) % 10 === 0 && index !== filteredWallpapers.length - 1 && (
+                <div className="col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5 my-4">
+                  <NativeBannerAd />
                 </div>
               )}
-            </>
+            </div>
           ))}
         </div>
 
         {/* Bottom Ad */}
         <div className="mt-8">
-          <AdBox />
+          <NativeBannerAd />
         </div>
 
         {/* Empty State */}

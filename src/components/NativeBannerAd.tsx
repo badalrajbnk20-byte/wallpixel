@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 
-interface AdBoxProps {
+interface NativeBannerAdProps {
   className?: string;
 }
 
-export const AdBox = ({ className = "" }: AdBoxProps) => {
+export const NativeBannerAd = ({ className = "" }: NativeBannerAdProps) => {
   const adContainerRef = useRef<HTMLDivElement>(null);
   const scriptLoaded = useRef(false);
 
@@ -28,7 +28,7 @@ export const AdBox = ({ className = "" }: AdBoxProps) => {
   }, []);
 
   return (
-    <div className={`${className} flex justify-center`}>
+    <div className={className}>
       <div id="container-e038811b45f5e533076d79eec18e2f92" ref={adContainerRef}></div>
     </div>
   );
