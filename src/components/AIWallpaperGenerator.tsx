@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Download, Loader2, X, Smartphone, Tablet, Monitor, Upload, Image, History, Trash2, Palette } from "lucide-react";
+import { Sparkles, Download, Loader2, X, Smartphone, Tablet, Monitor, Upload, Image, History, Trash2, Palette, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { CreditDisplay } from "@/components/CreditDisplay";
+import { useNavigate } from "react-router-dom";
 
 type WallpaperSize = "mobile" | "tablet" | "desktop";
 
@@ -42,6 +45,8 @@ export const AIWallpaperGenerator = () => {
   const [galleryImages, setGalleryImages] = useState<GeneratedWallpaper[]>([]);
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user, isPremium, credits, useCredit, refreshCredits } = useAuth();
+  const navigate = useNavigate();
 
   // Load gallery from localStorage on mount
   useEffect(() => {
@@ -115,6 +120,36 @@ export const AIWallpaperGenerator = () => {
   const handleGenerate = async () => {
     if (!prompt.trim()) {
       toast.error("Please enter a description for your wallpaper");
+      return;
+    }
+
+    // Check if user is logged in
+    if (!user) {
+      toast.error("Please login to generate wallpapers", {
+        action: {
+          label: "Login",
+          onClick: () => navigate("/auth")
+        }
+      });
+      return;
+    }
+
+    // Check credits (premium has unlimited)
+    if (!isPremium && (!credits || credits.credits <= 0)) {
+      toast.error("No credits left!", {
+        description: "Watch an ad or go premium for unlimited generations",
+        action: {
+          label: "Go Premium",
+          onClick: () => navigate("/premium")
+        }
+      });
+      return;
+    }
+
+    // Use a credit (returns true for premium users automatically)
+    const creditUsed = await useCredit();
+    if (!creditUsed) {
+      toast.error("Failed to use credit. Please try again.");
       return;
     }
 
@@ -246,6 +281,11 @@ export const AIWallpaperGenerator = () => {
               </span>
             </Button>
           )}
+        </div>
+
+        {/* Credit Display */}
+        <div className="mb-4">
+          <CreditDisplay />
         </div>
 
         {/* Size Selection */}
