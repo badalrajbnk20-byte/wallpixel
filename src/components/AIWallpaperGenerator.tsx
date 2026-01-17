@@ -1,17 +1,34 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Download, Loader2, X, Smartphone, Tablet, Monitor, Upload, Image } from "lucide-react";
+import { Sparkles, Download, Loader2, X, Smartphone, Tablet, Monitor, Upload, Image, History, Trash2, Palette } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 type WallpaperSize = "mobile" | "tablet" | "desktop";
 
+interface GeneratedWallpaper {
+  id: string;
+  imageUrl: string;
+  prompt: string;
+  size: WallpaperSize;
+  createdAt: number;
+}
+
 const sizeOptions = [
   { id: "mobile" as WallpaperSize, label: "Mobile", icon: Smartphone, ratio: "9:16" },
   { id: "tablet" as WallpaperSize, label: "Tablet", icon: Tablet, ratio: "3:4" },
   { id: "desktop" as WallpaperSize, label: "Desktop", icon: Monitor, ratio: "16:9" },
+];
+
+const stylePresets = [
+  { id: "anime", label: "Anime", prompt: "in anime art style with vibrant colors" },
+  { id: "oil", label: "Oil Painting", prompt: "as a beautiful oil painting with rich brushstrokes" },
+  { id: "watercolor", label: "Watercolor", prompt: "in soft watercolor painting style" },
+  { id: "cyberpunk", label: "Cyberpunk", prompt: "in cyberpunk style with neon lights and futuristic elements" },
+  { id: "3d", label: "3D Render", prompt: "as a high quality 3D render" },
+  { id: "minimal", label: "Minimal", prompt: "in minimalist style with clean lines" },
 ];
 
 export const AIWallpaperGenerator = () => {
@@ -21,7 +38,40 @@ export const AIWallpaperGenerator = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [selectedSize, setSelectedSize] = useState<WallpaperSize>("mobile");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [showGallery, setShowGallery] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<GeneratedWallpaper[]>([]);
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load gallery from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('ai-wallpaper-gallery');
+    if (saved) {
+      setGalleryImages(JSON.parse(saved));
+    }
+  }, []);
+
+  // Save to gallery
+  const saveToGallery = (imageUrl: string, promptText: string, size: WallpaperSize) => {
+    const newWallpaper: GeneratedWallpaper = {
+      id: `ai-${Date.now()}`,
+      imageUrl,
+      prompt: promptText,
+      size,
+      createdAt: Date.now()
+    };
+    const updated = [newWallpaper, ...galleryImages].slice(0, 20); // Keep last 20
+    setGalleryImages(updated);
+    localStorage.setItem('ai-wallpaper-gallery', JSON.stringify(updated));
+  };
+
+  // Delete from gallery
+  const deleteFromGallery = (id: string) => {
+    const updated = galleryImages.filter(img => img.id !== id);
+    setGalleryImages(updated);
+    localStorage.setItem('ai-wallpaper-gallery', JSON.stringify(updated));
+    toast.success("Removed from gallery");
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -54,6 +104,14 @@ export const AIWallpaperGenerator = () => {
     }
   };
 
+  const applyStylePreset = (styleId: string) => {
+    if (selectedStyle === styleId) {
+      setSelectedStyle(null);
+    } else {
+      setSelectedStyle(styleId);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim()) {
       toast.error("Please enter a description for your wallpaper");
@@ -65,9 +123,18 @@ export const AIWallpaperGenerator = () => {
     try {
       const aspectRatio = sizeOptions.find(s => s.id === selectedSize)?.ratio || "9:16";
       
+      // Add style preset to prompt if selected
+      let finalPrompt = prompt.trim();
+      if (selectedStyle) {
+        const style = stylePresets.find(s => s.id === selectedStyle);
+        if (style) {
+          finalPrompt = `${finalPrompt} ${style.prompt}`;
+        }
+      }
+      
       const { data, error } = await supabase.functions.invoke('generate-wallpaper', {
         body: { 
-          prompt: prompt.trim(),
+          prompt: finalPrompt,
           aspectRatio,
           inputImage: uploadedImage
         }
@@ -97,6 +164,7 @@ export const AIWallpaperGenerator = () => {
       }
 
       setGeneratedImage(data.imageUrl);
+      saveToGallery(data.imageUrl, prompt.trim(), selectedSize);
       setShowPreview(true);
       toast.success("Wallpaper generated!", {
         description: "Your custom wallpaper is ready"
@@ -125,13 +193,14 @@ export const AIWallpaperGenerator = () => {
     }
   };
 
-  const handleDownload = async () => {
-    if (!generatedImage) return;
+  const handleDownload = async (imageUrl?: string, promptText?: string) => {
+    const downloadUrl = imageUrl || generatedImage;
+    if (!downloadUrl) return;
 
     await trackAIDownload();
 
     const link = document.createElement("a");
-    link.href = generatedImage;
+    link.href = downloadUrl;
     link.download = `ai-wallpaper-${selectedSize}-${Date.now()}.png`;
     document.body.appendChild(link);
     link.click();
@@ -143,17 +212,40 @@ export const AIWallpaperGenerator = () => {
     });
   };
 
+  const viewGalleryImage = (wallpaper: GeneratedWallpaper) => {
+    setGeneratedImage(wallpaper.imageUrl);
+    setSelectedSize(wallpaper.size);
+    setShowGallery(false);
+    setShowPreview(true);
+  };
+
   return (
     <>
       <div className="bg-gradient-card backdrop-blur-sm rounded-2xl p-6 border border-border shadow-card mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
-            <Sparkles className="w-6 h-6 text-primary-foreground" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
+              <Sparkles className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-foreground">AI Wallpaper Generator</h2>
+              <p className="text-sm text-muted-foreground">Create your own custom wallpaper</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-foreground">AI Wallpaper Generator</h2>
-            <p className="text-sm text-muted-foreground">Create your own custom wallpaper</p>
-          </div>
+          {galleryImages.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowGallery(true)}
+              className="flex items-center gap-2"
+            >
+              <History className="w-4 h-4" />
+              <span className="hidden sm:inline">History</span>
+              <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
+                {galleryImages.length}
+              </span>
+            </Button>
+          )}
         </div>
 
         {/* Size Selection */}
@@ -174,6 +266,30 @@ export const AIWallpaperGenerator = () => {
                 <size.icon className="w-5 h-5" />
                 <span className="text-xs font-medium">{size.label}</span>
                 <span className="text-[10px] opacity-70">{size.ratio}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Style Presets */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Palette className="w-4 h-4 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Style Presets:</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {stylePresets.map((style) => (
+              <button
+                key={style.id}
+                onClick={() => applyStylePreset(style.id)}
+                disabled={isGenerating}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  selectedStyle === style.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                {style.label}
               </button>
             ))}
           </div>
@@ -250,6 +366,63 @@ export const AIWallpaperGenerator = () => {
         </Button>
       </div>
 
+      {/* Gallery Dialog */}
+      <Dialog open={showGallery} onOpenChange={setShowGallery}>
+        <DialogContent className="max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="flex items-center gap-3 mb-4">
+            <History className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold">Generation History</h2>
+          </div>
+          
+          <div className="overflow-y-auto flex-1 -mx-6 px-6">
+            {galleryImages.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No generated wallpapers yet</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {galleryImages.map((wallpaper) => (
+                  <div 
+                    key={wallpaper.id} 
+                    className="relative group rounded-xl overflow-hidden border border-border"
+                  >
+                    <img 
+                      src={wallpaper.imageUrl} 
+                      alt={wallpaper.prompt}
+                      className="w-full aspect-[3/4] object-cover cursor-pointer"
+                      onClick={() => viewGalleryImage(wallpaper)}
+                    />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+                      <p className="text-white text-xs line-clamp-2 mb-2">{wallpaper.prompt}</p>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="flex-1 h-7 text-xs"
+                          onClick={() => handleDownload(wallpaper.imageUrl, wallpaper.prompt)}
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          Save
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 w-7 p-0"
+                          onClick={() => deleteFromGallery(wallpaper.id)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Preview Dialog */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-full w-full h-full p-0 bg-background/95 backdrop-blur-xl border-0">
@@ -285,7 +458,7 @@ export const AIWallpaperGenerator = () => {
               </div>
 
               <Button
-                onClick={handleDownload}
+                onClick={() => handleDownload()}
                 className="w-full bg-gradient-primary hover:opacity-90 text-primary-foreground font-semibold shadow-glow"
               >
                 <Download className="w-5 h-5 mr-2" />
