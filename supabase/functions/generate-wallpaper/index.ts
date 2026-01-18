@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, aspectRatio = "9:16", inputImage } = await req.json();
+    const { prompt, aspectRatio = "9:16" } = await req.json();
     
     if (!prompt || typeof prompt !== 'string') {
       return new Response(
@@ -20,145 +20,77 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY is not configured');
-      return new Response(
-        JSON.stringify({ error: 'AI service not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    console.log('Generating wallpaper with prompt:', prompt, 'aspectRatio:', aspectRatio);
+
+    // Calculate dimensions based on aspect ratio
+    let width: number, height: number;
+    switch (aspectRatio) {
+      case "9:16": // Mobile
+        width = 720;
+        height = 1280;
+        break;
+      case "3:4": // Tablet
+        width = 960;
+        height = 1280;
+        break;
+      case "16:9": // Desktop
+        width = 1920;
+        height = 1080;
+        break;
+      default:
+        width = 720;
+        height = 1280;
     }
 
-    console.log('Generating wallpaper with prompt:', prompt, 'aspectRatio:', aspectRatio, 'hasInputImage:', !!inputImage);
-
-    // Get orientation description based on aspect ratio
-    const orientationMap: Record<string, string> = {
-      "9:16": "VERTICAL/PORTRAIT orientation (tall, like a phone screen)",
-      "3:4": "PORTRAIT orientation (slightly tall, like a tablet)",
-      "16:9": "HORIZONTAL/LANDSCAPE orientation (wide, like a desktop monitor)",
-    };
-    const orientationDesc = orientationMap[aspectRatio] || orientationMap["9:16"];
-
-    // Build the message content
-    let messageContent: any;
-
-    if (inputImage) {
-      // Image-to-image: Transform uploaded photo
-      const enhancedPrompt = `Transform this image into a beautiful wallpaper with ${aspectRatio} aspect ratio (${orientationDesc}).
-
-User's request: "${prompt}"
-
-Requirements:
-- Apply the transformation while maintaining the essence of the original image
-- Make it suitable as a ${aspectRatio === "9:16" ? "mobile phone" : aspectRatio === "3:4" ? "tablet" : "desktop"} wallpaper
-- NO text, words, or watermarks
-- High quality, vibrant result
-- Professional quality output`;
-
-      messageContent = [
-        { type: "text", text: enhancedPrompt },
-        { type: "image_url", image_url: { url: inputImage } }
-      ];
-    } else {
-      // Text-to-image: Generate new wallpaper
-      // Check if user wants their name/text on wallpaper
-      const wantsText = /\b(naam|name|text|likhna|likho|लिखो|नाम)\b/i.test(prompt);
-      const wants3D = /\b(3d|3-d|three\s*d|थ्री\s*डी)\b/i.test(prompt);
-      
-      let styleInstructions = "";
-      if (wants3D) {
-        styleInstructions = "Create in stunning 3D style with depth, shadows, lighting effects, and dimensional appearance. ";
-      }
-      
-      let textInstructions = "";
-      if (wantsText) {
-        textInstructions = `IMPORTANT: The user wants TEXT/NAME displayed on this wallpaper. Extract the name or text they mentioned and display it prominently and beautifully as the main focus of the wallpaper. Style the text artistically.`;
-      } else {
-        textInstructions = "NO text, words, letters, numbers or watermarks on the image.";
-      }
-      
-      const enhancedPrompt = `Generate a ${aspectRatio} aspect ratio wallpaper (${orientationDesc}).
-
-User's exact request: "${prompt}"
-
-UNDERSTAND THE REQUEST:
-- If user mentions a NAME (like "Badal Sarkar", "Rahul", etc.) and wants it as wallpaper, create a beautiful artistic wallpaper featuring that name as stylized text
-- If user asks for a specific style (3D, neon, galaxy, etc.), apply that style
-- If user describes a scene or object, create that exact scene/object
-
-${textInstructions}
-
-${styleInstructions}
-
-Requirements:
-- MUST be ${orientationDesc}
-- High quality, vibrant colors
-- Beautiful composition for ${aspectRatio === "9:16" ? "phone" : aspectRatio === "3:4" ? "tablet" : "desktop"} home screen
-- Professional quality image
-- Follow user's exact creative vision`;
-
-      messageContent = enhancedPrompt;
-    }
-
-    // Call Lovable AI Gateway with image generation model
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-pro-image-preview',
-        messages: [
-          {
-            role: 'user',
-            content: messageContent
-          }
-        ],
-        modalities: ['image', 'text'],
-        image_generation_config: {
-          aspect_ratio: aspectRatio
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      return new Response(
-        JSON.stringify({ error: 'Failed to generate wallpaper' }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const data = await response.json();
-    console.log('AI response received');
-
-    // Extract the generated image from the response
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    // Check if user wants their name/text on wallpaper
+    const wantsText = /\b(naam|name|text|likhna|likho|लिखो|नाम)\b/i.test(prompt);
+    const wants3D = /\b(3d|3-d|three\s*d|थ्री\s*डी)\b/i.test(prompt);
     
-    if (!imageUrl) {
-      console.error('No image URL in response:', JSON.stringify(data));
+    let enhancedPrompt = prompt;
+    
+    // Add style instructions
+    if (wants3D) {
+      enhancedPrompt += ", stunning 3D style with depth, shadows, lighting effects, dimensional appearance";
+    }
+    
+    if (wantsText) {
+      enhancedPrompt += ", artistic text typography as main focus, beautiful lettering design";
+    } else {
+      enhancedPrompt += ", no text no words no letters no watermarks";
+    }
+    
+    // Add quality modifiers
+    enhancedPrompt += ", ultra high quality, 8k, detailed, vibrant colors, beautiful wallpaper, professional photography";
+
+    // Use Pollinations.ai - FREE, no API key needed!
+    const encodedPrompt = encodeURIComponent(enhancedPrompt);
+    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${Date.now()}`;
+
+    console.log('Fetching from Pollinations:', pollinationsUrl);
+
+    // Fetch the image to verify it works
+    const imageResponse = await fetch(pollinationsUrl);
+    
+    if (!imageResponse.ok) {
+      console.error('Pollinations error:', imageResponse.status);
       return new Response(
-        JSON.stringify({ error: 'No image generated' }),
+        JSON.stringify({ error: 'Failed to generate wallpaper. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Convert image to base64
+    const imageBlob = await imageResponse.blob();
+    const arrayBuffer = await imageBlob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+    const base64 = btoa(binary);
+    const imageUrl = `data:image/jpeg;base64,${base64}`;
+
+    console.log('Wallpaper generated successfully!');
 
     return new Response(
       JSON.stringify({ imageUrl }),
