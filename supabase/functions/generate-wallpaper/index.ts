@@ -61,14 +61,41 @@ Requirements:
       ];
     } else {
       // Text-to-image: Generate new wallpaper
-      const enhancedPrompt = `Generate a ${aspectRatio} aspect ratio wallpaper (${orientationDesc}) based on: "${prompt}".
+      // Check if user wants their name/text on wallpaper
+      const wantsText = /\b(naam|name|text|likhna|likho|लिखो|नाम)\b/i.test(prompt);
+      const wants3D = /\b(3d|3-d|three\s*d|थ्री\s*डी)\b/i.test(prompt);
+      
+      let styleInstructions = "";
+      if (wants3D) {
+        styleInstructions = "Create in stunning 3D style with depth, shadows, lighting effects, and dimensional appearance. ";
+      }
+      
+      let textInstructions = "";
+      if (wantsText) {
+        textInstructions = `IMPORTANT: The user wants TEXT/NAME displayed on this wallpaper. Extract the name or text they mentioned and display it prominently and beautifully as the main focus of the wallpaper. Style the text artistically.`;
+      } else {
+        textInstructions = "NO text, words, letters, numbers or watermarks on the image.";
+      }
+      
+      const enhancedPrompt = `Generate a ${aspectRatio} aspect ratio wallpaper (${orientationDesc}).
+
+User's exact request: "${prompt}"
+
+UNDERSTAND THE REQUEST:
+- If user mentions a NAME (like "Badal Sarkar", "Rahul", etc.) and wants it as wallpaper, create a beautiful artistic wallpaper featuring that name as stylized text
+- If user asks for a specific style (3D, neon, galaxy, etc.), apply that style
+- If user describes a scene or object, create that exact scene/object
+
+${textInstructions}
+
+${styleInstructions}
 
 Requirements:
 - MUST be ${orientationDesc}
-- NO text, words, letters, numbers or watermarks
 - High quality, vibrant colors
 - Beautiful composition for ${aspectRatio === "9:16" ? "phone" : aspectRatio === "3:4" ? "tablet" : "desktop"} home screen
-- Professional quality image`;
+- Professional quality image
+- Follow user's exact creative vision`;
 
       messageContent = enhancedPrompt;
     }
