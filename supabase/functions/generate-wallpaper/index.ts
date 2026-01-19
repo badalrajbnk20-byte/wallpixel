@@ -62,7 +62,7 @@ serve(async (req) => {
     // Add quality modifiers for wallpaper
     enhancedPrompt += `, ultra high quality ${aspectRatio} wallpaper, sharp details, stunning colors, professional composition`;
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 
     // Helper: free fallback (no credits)
     const generateWithPollinations = async (reason: string) => {
@@ -70,7 +70,6 @@ serve(async (req) => {
       const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${Date.now()}`;
 
       console.log('Falling back to Pollinations:', reason);
-      // quick health check
       const imgResp = await fetch(pollinationsUrl);
       if (!imgResp.ok) {
         console.error('Pollinations error:', imgResp.status);
@@ -83,47 +82,49 @@ serve(async (req) => {
       };
     };
 
-    // If AI key missing, always use free fallback
-    if (!LOVABLE_API_KEY) {
-      const fallback = await generateWithPollinations('AI not configured');
+    // If Gemini API key missing, use free fallback
+    if (!GEMINI_API_KEY) {
+      console.log('GEMINI_API_KEY not found, using free fallback');
+      const fallback = await generateWithPollinations('Gemini API key not configured');
       return new Response(JSON.stringify(fallback), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('Generating with Lovable AI Gemini:', enhancedPrompt);
+    console.log('Generating with Google Gemini API:', enhancedPrompt);
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image-preview',
-        messages: [
-          {
-            role: 'user',
-            content: `Generate a beautiful ${width}x${height} wallpaper: ${enhancedPrompt}`,
+    // Use Google Gemini API directly with user's API key
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Generate a beautiful ${width}x${height} wallpaper image: ${enhancedPrompt}`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE'],
           },
-        ],
-        modalities: ['image', 'text'],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('Lovable AI error:', aiResponse.status, errorText);
-
-      // Credits / rate-limit: switch to free fallback so app keeps working
-      if (aiResponse.status === 402) {
-        const fallback = await generateWithPollinations('AI credits exhausted');
-        return new Response(JSON.stringify(fallback), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        }),
       }
-      if (aiResponse.status === 429) {
-        const fallback = await generateWithPollinations('Rate limited');
+    );
+
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text();
+      console.error('Gemini API error:', geminiResponse.status, errorText);
+
+      // If API key invalid or quota exceeded, use free fallback
+      if (geminiResponse.status === 403 || geminiResponse.status === 429) {
+        const fallback = await generateWithPollinations('Gemini quota exceeded or invalid key');
         return new Response(JSON.stringify(fallback), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -135,21 +136,32 @@ serve(async (req) => {
       );
     }
 
-    const aiData = await aiResponse.json();
+    const geminiData = await geminiResponse.json();
+    console.log('Gemini response received');
 
-    const imageUrl = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    // Extract image from Gemini response
+    const parts = geminiData.candidates?.[0]?.content?.parts || [];
+    let imageData: string | null = null;
 
-    if (!imageUrl) {
-      console.error('No image in response:', JSON.stringify(aiData));
-      return new Response(
-        JSON.stringify({ error: 'No image generated. Please try a different prompt.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    for (const part of parts) {
+      if (part.inlineData?.mimeType?.startsWith('image/')) {
+        imageData = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        break;
+      }
+    }
+
+    if (!imageData) {
+      console.error('No image in Gemini response:', JSON.stringify(geminiData));
+      // Fallback to Pollinations if no image generated
+      const fallback = await generateWithPollinations('Gemini did not return image');
+      return new Response(JSON.stringify(fallback), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log('Wallpaper generated successfully with Gemini!');
 
-    return new Response(JSON.stringify({ imageUrl }), {
+    return new Response(JSON.stringify({ imageUrl: imageData }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
