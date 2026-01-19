@@ -59,38 +59,64 @@ serve(async (req) => {
       enhancedPrompt += ", no text no words no letters no watermarks";
     }
     
-    // Add quality modifiers
-    enhancedPrompt += ", ultra high quality, 8k, detailed, vibrant colors, beautiful wallpaper, professional photography";
+    // Add quality modifiers for wallpaper
+    enhancedPrompt += `, ultra high quality ${aspectRatio} wallpaper, 8k resolution, stunning colors, professional photography, beautiful composition`;
 
-    // Use Pollinations.ai - FREE, no API key needed!
-    const encodedPrompt = encodeURIComponent(enhancedPrompt);
-    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${Date.now()}`;
-
-    console.log('Fetching from Pollinations:', pollinationsUrl);
-
-    // Fetch the image to verify it works
-    const imageResponse = await fetch(pollinationsUrl);
+    // Use Lovable AI with Gemini for HIGH QUALITY image generation
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
-    if (!imageResponse.ok) {
-      console.error('Pollinations error:', imageResponse.status);
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ error: 'AI service not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Generating with Lovable AI Gemini:', enhancedPrompt);
+
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-image-preview',
+        messages: [
+          {
+            role: 'user',
+            content: `Generate a beautiful ${width}x${height} wallpaper: ${enhancedPrompt}`
+          }
+        ],
+        modalities: ['image', 'text']
+      })
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('Lovable AI error:', aiResponse.status, errorText);
       return new Response(
         JSON.stringify({ error: 'Failed to generate wallpaper. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Convert image to base64
-    const imageBlob = await imageResponse.blob();
-    const arrayBuffer = await imageBlob.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    let binary = '';
-    for (let i = 0; i < uint8Array.length; i++) {
-      binary += String.fromCharCode(uint8Array[i]);
-    }
-    const base64 = btoa(binary);
-    const imageUrl = `data:image/jpeg;base64,${base64}`;
+    const aiData = await aiResponse.json();
+    console.log('AI Response received');
 
-    console.log('Wallpaper generated successfully!');
+    // Extract image from response
+    const imageUrl = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    
+    if (!imageUrl) {
+      console.error('No image in response:', JSON.stringify(aiData));
+      return new Response(
+        JSON.stringify({ error: 'No image generated. Please try a different prompt.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Wallpaper generated successfully with Gemini!');
 
     return new Response(
       JSON.stringify({ imageUrl }),
