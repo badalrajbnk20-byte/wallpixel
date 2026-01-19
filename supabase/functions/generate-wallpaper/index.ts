@@ -42,21 +42,32 @@ serve(async (req) => {
         height = 1280;
     }
 
-    // Check if user wants their name/text on wallpaper
-    const wantsText = /\b(naam|name|text|likhna|likho|लिखो|नाम)\b/i.test(prompt);
+    // Extract name/text from prompt if user wants it on wallpaper
+    const nameMatch = prompt.match(/(?:naam|name|text|नाम)\s*[:\-]?\s*['"]?([A-Za-z\s\u0900-\u097F]+?)['"]?\s*(?:ka|ki|ke|का|की|के|wallpaper|banao|bana|बनाओ|likho|लिखो|$)/i);
+    const wantsText = nameMatch || /\b(naam|name|text|likhna|likho|लिखो|नाम)\b/i.test(prompt);
     const wants3D = /\b(3d|3-d|three\s*d|थ्री\s*डी)\b/i.test(prompt);
 
-    let enhancedPrompt = prompt;
-
-    // Add style instructions
-    if (wants3D) {
-      enhancedPrompt += ", stunning 3D style with depth, shadows, lighting effects, dimensional appearance";
+    let enhancedPrompt = '';
+    
+    if (wantsText && nameMatch && nameMatch[1]) {
+      // User wants specific text - be VERY explicit about exact spelling
+      const exactName = nameMatch[1].trim();
+      enhancedPrompt = `Create a stunning wallpaper with the text "${exactName}" written EXACTLY as shown in quotes. ` +
+        `The text must be spelled EXACTLY as: ${exactName.split('').join('-')}. ` +
+        `Style: elegant 3D golden metallic typography, dramatic lighting, ` +
+        `beautiful decorative background with leaves and rich colors. ` +
+        `CRITICAL: Write ONLY "${exactName}" - no other text, no variations, no extra letters.`;
+    } else if (wantsText) {
+      // Generic text request
+      enhancedPrompt = prompt + ", artistic text typography as main focus, beautiful lettering design, SPELL TEXT EXACTLY AS GIVEN";
+    } else {
+      // No text wanted
+      enhancedPrompt = prompt + ", no text no words no letters no watermarks";
     }
 
-    if (wantsText) {
-      enhancedPrompt += ", artistic text typography as main focus, beautiful lettering design";
-    } else {
-      enhancedPrompt += ", no text no words no letters no watermarks";
+    // Add style instructions
+    if (wants3D && !nameMatch) {
+      enhancedPrompt += ", stunning 3D style with depth, shadows, lighting effects, dimensional appearance";
     }
 
     // Add quality modifiers for wallpaper
