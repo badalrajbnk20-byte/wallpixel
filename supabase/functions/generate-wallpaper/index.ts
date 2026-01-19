@@ -43,34 +43,37 @@ serve(async (req) => {
     }
 
     // Extract name/text from prompt if user wants it on wallpaper
-    const nameMatch = prompt.match(/(?:naam|name|text|नाम)\s*[:\-]?\s*['"]?([A-Za-z\s\u0900-\u097F]+?)['"]?\s*(?:ka|ki|ke|का|की|के|wallpaper|banao|bana|बनाओ|likho|लिखो|$)/i);
-    const wantsText = nameMatch || /\b(naam|name|text|likhna|likho|लिखो|नाम)\b/i.test(prompt);
+    const nameMatch = prompt.match(
+      /(?:naam|name|text|नाम)\s*[:\-]?\s*['"]?([A-Za-z\s\u0900-\u097F]+?)['"]?\s*(?:ka|ki|ke|का|की|के|wallpaper|banao|bana|बनाओ|likho|लिखो|$)/i
+    );
+    const overlayText = nameMatch?.[1]?.trim() || null;
+
+    const wantsText = Boolean(overlayText) || /\b(naam|name|text|likhna|likho|लिखो|नाम)\b/i.test(prompt);
     const wants3D = /\b(3d|3-d|three\s*d|थ्री\s*डी)\b/i.test(prompt);
+    const isDevotional = /\b(mahakal|mahadev|shiva|shiv|bholenath|भोले|महाकाल|शिव)\b/i.test(prompt);
 
-    let enhancedPrompt = '';
-    
-    if (wantsText && nameMatch && nameMatch[1]) {
-      // User wants specific text - be VERY explicit about exact spelling
-      const exactName = nameMatch[1].trim();
-      enhancedPrompt = `Create a stunning wallpaper with the text "${exactName}" written EXACTLY as shown in quotes. ` +
-        `The text must be spelled EXACTLY as: ${exactName.split('').join('-')}. ` +
-        `Style: elegant 3D golden metallic typography, dramatic lighting, ` +
-        `beautiful decorative background with leaves and rich colors. ` +
-        `CRITICAL: Write ONLY "${exactName}" - no other text, no variations, no extra letters.`;
-    } else if (wantsText) {
-      // Generic text request
-      enhancedPrompt = prompt + ", artistic text typography as main focus, beautiful lettering design, SPELL TEXT EXACTLY AS GIVEN";
-    } else {
-      // No text wanted
-      enhancedPrompt = prompt + ", no text no words no letters no watermarks";
+    // If user wants text, do NOT rely on AI to spell it.
+    // We generate a clean background (NO TEXT) and return overlayText so the client can render exact spelling.
+    let basePrompt = prompt;
+    if (overlayText && nameMatch?.[0]) {
+      basePrompt = prompt.replace(nameMatch[0], '').trim();
+      if (!basePrompt) basePrompt = 'ornate decorative background';
     }
 
-    // Add style instructions
-    if (wants3D && !nameMatch) {
-      enhancedPrompt += ", stunning 3D style with depth, shadows, lighting effects, dimensional appearance";
+    let enhancedPrompt = `${basePrompt}`;
+
+    if (isDevotional) {
+      enhancedPrompt += ", devotional, respectful, serene expression, realistic details, not cartoon, not caricature";
     }
 
-    // Add quality modifiers for wallpaper
+    if (wants3D) {
+      enhancedPrompt += ", cinematic 3D lighting, depth, shadows, dramatic highlights";
+    }
+
+    // Always ask the image model to avoid text; we will add text ourselves when needed
+    enhancedPrompt += ", no text, no words, no letters, no watermarks";
+
+    // Quality modifiers for wallpaper
     enhancedPrompt += `, ultra high quality ${aspectRatio} wallpaper, sharp details, stunning colors, professional composition`;
 
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
@@ -87,8 +90,17 @@ serve(async (req) => {
         throw new Error('Free generator failed');
       }
 
+      // Convert to base64 so frontend can safely draw on canvas
+      const mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
+      const arrayBuffer = await imgResp.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < uint8Array.length; i++) binary += String.fromCharCode(uint8Array[i]);
+      const base64 = btoa(binary);
+
       return {
-        imageUrl: pollinationsUrl,
+        imageUrl: `data:${mimeType};base64,${base64}`,
+        overlayText,
         warning: `Free mode used (${reason}). Quality vary kar sakti hai.`,
       };
     };
@@ -172,7 +184,7 @@ serve(async (req) => {
 
     console.log('Wallpaper generated successfully with Gemini!');
 
-    return new Response(JSON.stringify({ imageUrl: imageData }), {
+    return new Response(JSON.stringify({ imageUrl: imageData, overlayText }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
