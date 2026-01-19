@@ -45,32 +45,50 @@ serve(async (req) => {
     // Check if user wants their name/text on wallpaper
     const wantsText = /\b(naam|name|text|likhna|likho|लिखो|नाम)\b/i.test(prompt);
     const wants3D = /\b(3d|3-d|three\s*d|थ्री\s*डी)\b/i.test(prompt);
-    
+
     let enhancedPrompt = prompt;
-    
+
     // Add style instructions
     if (wants3D) {
       enhancedPrompt += ", stunning 3D style with depth, shadows, lighting effects, dimensional appearance";
     }
-    
+
     if (wantsText) {
       enhancedPrompt += ", artistic text typography as main focus, beautiful lettering design";
     } else {
       enhancedPrompt += ", no text no words no letters no watermarks";
     }
-    
-    // Add quality modifiers for wallpaper
-    enhancedPrompt += `, ultra high quality ${aspectRatio} wallpaper, 8k resolution, stunning colors, professional photography, beautiful composition`;
 
-    // Use Lovable AI with Gemini for HIGH QUALITY image generation
+    // Add quality modifiers for wallpaper
+    enhancedPrompt += `, ultra high quality ${aspectRatio} wallpaper, sharp details, stunning colors, professional composition`;
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    
+
+    // Helper: free fallback (no credits)
+    const generateWithPollinations = async (reason: string) => {
+      const encodedPrompt = encodeURIComponent(enhancedPrompt);
+      const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${Date.now()}`;
+
+      console.log('Falling back to Pollinations:', reason);
+      // quick health check
+      const imgResp = await fetch(pollinationsUrl);
+      if (!imgResp.ok) {
+        console.error('Pollinations error:', imgResp.status);
+        throw new Error('Free generator failed');
+      }
+
+      return {
+        imageUrl: pollinationsUrl,
+        warning: `Free mode used (${reason}). Quality vary kar sakti hai.`,
+      };
+    };
+
+    // If AI key missing, always use free fallback
     if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ error: 'AI service not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      const fallback = await generateWithPollinations('AI not configured');
+      return new Response(JSON.stringify(fallback), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log('Generating with Lovable AI Gemini:', enhancedPrompt);
@@ -86,16 +104,31 @@ serve(async (req) => {
         messages: [
           {
             role: 'user',
-            content: `Generate a beautiful ${width}x${height} wallpaper: ${enhancedPrompt}`
-          }
+            content: `Generate a beautiful ${width}x${height} wallpaper: ${enhancedPrompt}`,
+          },
         ],
-        modalities: ['image', 'text']
-      })
+        modalities: ['image', 'text'],
+      }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('Lovable AI error:', aiResponse.status, errorText);
+
+      // Credits / rate-limit: switch to free fallback so app keeps working
+      if (aiResponse.status === 402) {
+        const fallback = await generateWithPollinations('AI credits exhausted');
+        return new Response(JSON.stringify(fallback), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (aiResponse.status === 429) {
+        const fallback = await generateWithPollinations('Rate limited');
+        return new Response(JSON.stringify(fallback), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       return new Response(
         JSON.stringify({ error: 'Failed to generate wallpaper. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -103,11 +136,9 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    console.log('AI Response received');
 
-    // Extract image from response
     const imageUrl = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    
+
     if (!imageUrl) {
       console.error('No image in response:', JSON.stringify(aiData));
       return new Response(
@@ -118,10 +149,9 @@ serve(async (req) => {
 
     console.log('Wallpaper generated successfully with Gemini!');
 
-    return new Response(
-      JSON.stringify({ imageUrl }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ imageUrl }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
     console.error('Error generating wallpaper:', error);
