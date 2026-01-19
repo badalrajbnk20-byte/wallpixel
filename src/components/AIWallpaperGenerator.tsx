@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Download, Loader2, X, Smartphone, Tablet, Monitor, Upload, Image, History, Trash2, Palette } from "lucide-react";
+import { Sparkles, Download, Loader2, X, Smartphone, Tablet, Monitor, Upload, Image as ImageIcon, History, Trash2, Palette } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -114,6 +114,91 @@ export const AIWallpaperGenerator = () => {
     }
   };
 
+  const composeImageWithText = async (baseImageUrl: string, text: string) => {
+    const img = new Image();
+    // data URLs are same-origin; this is just extra safety if provider returns a normal URL
+    img.crossOrigin = 'anonymous';
+
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to load image for text overlay'));
+      img.src = baseImageUrl;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || 720;
+    canvas.height = img.naturalHeight || 1280;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return baseImageUrl;
+
+    // background
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // text styling (center, 2 lines if needed)
+    const clean = text.trim().replace(/\s+/g, ' ');
+    const words = clean.split(' ');
+    const lines: string[] = [];
+    if (words.length <= 2) {
+      lines.push(clean);
+    } else {
+      // split into 2-3 lines for better fit
+      const mid = Math.ceil(words.length / 2);
+      lines.push(words.slice(0, mid).join(' '));
+      lines.push(words.slice(mid).join(' '));
+    }
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const maxWidth = canvas.width * 0.86;
+
+    const baseFont = Math.floor(canvas.width * 0.16);
+    const fontFamily = 'Georgia, "Times New Roman", serif';
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Draw each line with gradient + stroke + shadow
+    lines.forEach((line, i) => {
+      // reduce font if line is too long
+      let fontSize = baseFont;
+      ctx.font = `800 ${fontSize}px ${fontFamily}`;
+      while (ctx.measureText(line).width > maxWidth && fontSize > 36) {
+        fontSize -= 6;
+        ctx.font = `800 ${fontSize}px ${fontFamily}`;
+      }
+
+      const y = centerY + (i - (lines.length - 1) / 2) * (fontSize * 1.1);
+
+      // Shadow
+      ctx.shadowColor = 'rgba(0,0,0,0.55)';
+      ctx.shadowBlur = 18;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 10;
+
+      // Stroke
+      ctx.lineWidth = Math.max(6, fontSize * 0.08);
+      ctx.strokeStyle = 'rgba(60,30,10,0.95)';
+      ctx.strokeText(line, centerX, y);
+
+      // Fill gradient
+      const grad = ctx.createLinearGradient(centerX, y - fontSize, centerX, y + fontSize);
+      grad.addColorStop(0, '#fff4d6');
+      grad.addColorStop(0.45, '#ffd27a');
+      grad.addColorStop(1, '#c07a2a');
+      ctx.fillStyle = grad;
+      ctx.fillText(line, centerX, y);
+
+      // subtle highlight stroke
+      ctx.shadowColor = 'transparent';
+      ctx.lineWidth = Math.max(2, fontSize * 0.03);
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.strokeText(line, centerX, y - fontSize * 0.02);
+    });
+
+    return canvas.toDataURL('image/png');
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim()) {
       toast.error("Please enter a description for your wallpaper");
@@ -170,8 +255,14 @@ export const AIWallpaperGenerator = () => {
         return;
       }
 
-      setGeneratedImage(data.imageUrl);
-      saveToGallery(data.imageUrl, prompt.trim(), selectedSize);
+      // If backend detected exact overlay text, we render it ourselves (so spelling is always correct)
+      const overlayText = (data as any)?.overlayText as string | null | undefined;
+      const finalImageUrl = overlayText
+        ? await composeImageWithText(data.imageUrl, overlayText)
+        : data.imageUrl;
+
+      setGeneratedImage(finalImageUrl);
+      saveToGallery(finalImageUrl, prompt.trim(), selectedSize);
       setShowPreview(true);
 
       if (data?.warning) {
@@ -374,7 +465,7 @@ export const AIWallpaperGenerator = () => {
             </>
           ) : (
             <>
-              {uploadedImage ? <Image className="w-5 h-5 mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
+              {uploadedImage ? <ImageIcon className="w-5 h-5 mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
               {uploadedImage ? "Transform Photo" : "Generate Wallpaper"}
             </>
           )}
