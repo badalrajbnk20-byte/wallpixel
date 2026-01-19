@@ -144,17 +144,22 @@ export const AIWallpaperGenerator = () => {
 
       if (error) {
         console.error('Function error:', error);
-        if (error.message?.includes('429')) {
+
+        const anyErr = error as any;
+        const status: number | undefined =
+          anyErr?.context?.status ?? anyErr?.status ?? anyErr?.cause?.status;
+
+        if (status === 429) {
           toast.error("Rate limit reached. Please wait and try again.", {
-            description: "Too many requests in a short time"
+            description: "Too many requests in a short time",
           });
-        } else if (error.message?.includes('402')) {
+        } else if (status === 402) {
           toast.error("AI credits exhausted", {
-            description: "Please add credits to continue generating"
+            description: "Credits khatam ho gaye — abhi free fallback use hoga (quality vary kar sakti hai).",
           });
         } else {
           toast.error("Failed to generate wallpaper", {
-            description: "Please try again"
+            description: "Please try again",
           });
         }
         return;
@@ -168,9 +173,16 @@ export const AIWallpaperGenerator = () => {
       setGeneratedImage(data.imageUrl);
       saveToGallery(data.imageUrl, prompt.trim(), selectedSize);
       setShowPreview(true);
-      toast.success("Wallpaper generated!", {
-        description: "Your custom wallpaper is ready"
-      });
+
+      if (data?.warning) {
+        toast.message("Wallpaper generated", {
+          description: String(data.warning),
+        });
+      } else {
+        toast.success("Wallpaper generated!", {
+          description: "Your custom wallpaper is ready",
+        });
+      }
 
     } catch (error) {
       console.error('Generation error:', error);
